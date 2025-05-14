@@ -132,7 +132,8 @@ end
     
     fprintf('Reset complete\n');
     fprintf('initializing Tektronix AFG 31000\n');
-    tek = Tektronix_AFG_31000("USB0::0x0699::0x0355::C019986::INSTR");
+%     tek = Tektronix_AFG_31000("USB0::0x0699::0x0355::C019986::INSTR");
+    tek = Tektronix_AFG_31000("USB0::0x0699::0x035A::B011535::INSTR");
     tek2 = Tektronix_AFG_31000("USB0::0x0699::0x0355::C019987::INSTR");
 %     try
 %         tekRF = Tektronix_AFG_31000("USB0::0x0699::0x035A::B011535::INSTR");
@@ -259,42 +260,13 @@ end
     
     idx = cmdBytes(2);
     pi_idx = idx;
-    vertices_l = [2 3 4 5 6 8 12 14];
-    vertices = 4;%vertices_l(idx);
-    first_angle_arr = [0 180 90 108.47 90 130.90 90 127.12 90 114.18 122.73 114.89 90 107.22];
-    %first_angle = 180/vertices;%first_angle_arr(vertices);
+
     
     amps = [1 1];
     frequencies = [0 0];
     pi = cmdBytes(3)*1e-6;
     
-    %array = 100:0.05:112;                               % Create an array with values ranging from 107 to 110 with a step of 0.1
-    %shuffledArray = array(randperm(length(array)));     % Randomly shuffle the array
-    %index = mod(idx - 1, length(shuffledArray)) + 1;    % Use the index
-    %pi_b = shuffledArray(index)*1e-6;                     % Get one of the pi values in a random order
-    %disp(array);
-    
-    rng(42);    % Set the random seed for reproducibility
-    values_45 = normrnd(50, 15, [1000, 1]); % Generate values from normal distributions centered at 45, 90, and 135
-    values_90 = normrnd(90, 10, [2000, 1]);
-    values_135 = normrnd(130, 15, [1000, 1]);
-    values = [values_45; values_90; values_135]; % Combine the values into a single array
-    
-    %values = normrnd(90, 1.5, [2000, 1]);
-    values = values(values >= 40 & values <= 150); % Filter the values to be within the range [40, 150]
-    shuffled_indices = randperm(length(values)); % Shuffle the values
-    shuffled_values = values(shuffled_indices);
-    
-    SL_angle = shuffled_values(idx);
-    pi_b = pi*(shuffled_values(idx)/90);
-    
-    disp(['Current index is: ', num2str(idx)]);
-    disp(['The SL angle at the current index is: ', num2str(shuffled_values(idx))]);
-    disp(['The pi value at the current index is: ', num2str(pi_b*1000000)]);
-    
     spacing = 100e-6;
-    analyte_freq_l = 10.^(0:0.25:4);
-    %analyte_freq = analyte_freq_l(idx);
     
     pi_b = pi*0.9;    %abc
     SL_angle = pi_b/pi * 90;
@@ -306,7 +278,7 @@ end
     ACfreq = ACfreqarrshuffled(idx);
     disp(['The AC freq at the current index is: ', num2str(ACfreq)]);
     
-    lengths = [pi/2 3*pi/4];%[pi/2 pi_b*2/vertices];
+    lengths = [pi/2 pi/2];
     lengths = round_to_DAC_freq(lengths,sampleRateDAC_freq, 64);
     lengths_exact = vpa(lengths, 12);
     phases = [0 90];
@@ -314,15 +286,13 @@ end
     spacings = [5e-6 spacing];
     spacings = round_to_DAC_freq(spacings, sampleRateDAC_freq, 64);
     spacings_exact = vpa(spacings, 12);
-    trajectory_freq = 1/((lengths(2)+spacings(2))*vertices);
     disp(lengths_exact);
     disp(spacings_exact);
-    disp(trajectory_freq);
+%     disp(trajectory_freq);
     markers = [1 1]; %always keep these on
     markers2 = [0 0];
     trigs = [0 1]; %acquire on every "pi" pulse
     
-%     reps = [1 194174];
     reps = [1 50000];
     repeatSeq = [1]; % how many times to repeat the block of pulses
     
@@ -330,8 +300,7 @@ end
     %%set PB parameter
     start_trajectory_time = 1;
     T = lengths(2) + spacings(2);
-    num_periods = floor(start_trajectory_time/T);
-    
+        
     start_time = lengths(1) + spacings(1) + 5000*T + lengths(2);
 
     PB_seg1 = zeros(2, 2);
@@ -343,6 +312,7 @@ end
     PB_seg3 = zeros(2, 2);
     [PB_seg3(1,1), PB_seg3(2,1)] = deal(0, 1);
     [PB_seg3(1,2), PB_seg3(2,2)] = deal(start_time+4, 150e-6); %+3
+    
     start_time_exact = vpa(start_time, 12);
     display(start_time_exact);
     %%set AC field parameter
@@ -350,24 +320,24 @@ end
     %TJidx = idx - 1;
     %disp((1.08^9)/(1.08^TJidx));
     %trajectory_freq = (1.08^9) * trajectory_freq / (1.08^idx);  %abc
-    AC_dict.freq = trajectory_freq;
+    %AC_dict.freq = trajectory_freq;
     
-    waveformTJ          = 'SIN';    %SIN, SQU, TRI
-    AC_dict.Vpp         = 0.0;
-    AC_dict.DC_offset   = 0;
-    AC_dict.phase       = 0;
+    %waveformTJ          = 'SIN';    %SIN, SQU, TRI
+    %AC_dict.Vpp         = 0.0;
+    %AC_dict.DC_offset   = 0;
+    %AC_dict.phase       = 0;
     
-    waveformAC          = 'SIN';
-    AC_dict2.freq       = 20;
-    AC_dict2.Vpp        = 0; 
-    AC_dict2.DC_offset  = 0;
-    AC_dict2.phase      = 0;
-    
-    AC_dictRF.freq      = 75352401.49;
-    AC_dictRF.Vpp       = 0;
-    AC_dictRF.DC_offset = 0;
-    AC_dictRF.phase     = 0;
-    
+%     waveformAC          = 'SIN';
+%     AC_dict2.freq       = 20;
+%     AC_dict2.Vpp        = 0; 
+%     AC_dict2.DC_offset  = 0;
+%     AC_dict2.phase      = 0;
+%     
+%     AC_dictRF.freq      = 75352401.49;
+%     AC_dictRF.Vpp       = 0;
+%     AC_dictRF.DC_offset = 0;
+%     AC_dictRF.phase     = 0;
+%     
     %ch2 = 2;
     %PB(ch2) = PB_seg3;
     PB(ch3) = PB_seg1;
@@ -379,13 +349,27 @@ end
     fprintf("PB download finished \n");
     
     fprintf("set Tektronix 31000 as burst mode \n");
-    ncycles = round(reps(2)*(spacings(2) + lengths(2))*AC_dict.freq) + 10;
+%     ncycles = round(reps(2)*(spacings(2) + lengths(2))*AC_dict.freq) + 10;
+% 
+     % parameters for z pulses
+     period = 600.0;
+     pulse_width = 100.03;
+     lead_delay = 0.0;
+     Vpp = 0.6;
+     DC_offset = 0.3;
+     ncycles = 10000;
+     
+     
+     
+      if period~=0 || Vpp~=0
+           tek.set_Z_pulse(period, pulse_width, lead_delay, Vpp, DC_offset, ncycles)
+      end
 
-    if AC_dict.Vpp~=0 || AC_dict.DC_offset~=0
-         tek.burst_mode_trig_waveform(waveformTJ, AC_dict.freq, AC_dict.Vpp,...
-             AC_dict.DC_offset, AC_dict.phase, ncycles, true);
-%         tek.init_AFG_RF_AM(AC_dict.freq, AC_dict.Vpp, AC_dict.DC_offset, AC_dict.phase);
-    end
+%     if AC_dict.Vpp~=0 || AC_dict.DC_offset~=0
+%          tek.burst_mode_trig_waveform(waveformTJ, AC_dict.freq, AC_dict.Vpp,...
+%              AC_dict.DC_offset, AC_dict.phase, ncycles, true);
+% %         tek.init_AFG_RF_AM(AC_dict.freq, AC_dict.Vpp, AC_dict.DC_offset, AC_dict.phase);
+%     end
     
     %if AC_dict.Vpp~=0 || AC_dict.DC_offset~=0
     %    tek.burst_mode_trig_sinwave(AC_dict.freq, AC_dict.Vpp,...
@@ -410,7 +394,7 @@ end
     
     try
         tekRF.output_off();
-        tekRF.init_AFG_RF(AC_dictRF.freq, AC_dictRF.Vpp, AC_dictRF.DC_offset, AC_dictRF.phase);
+%         tekRF.init_AFG_RF(AC_dictRF.freq, AC_dictRF.Vpp, AC_dictRF.DC_offset, AC_dictRF.phase);
     catch
         disp('setting tekRF: error occurred');
     end
@@ -843,8 +827,9 @@ end
                 % Save data
                 % Save data
                 fprintf('Writing data to Z:.....\n');
-                save(['Z:\' fn],'pulseAmp','time_axis','relPhase','AC_dict','AC_dict2','lengths',...
-                    'phases','spacings','reps','trigs','repeatSeq','start_time','pi', 'pi_b', 'tacq', 'pi_idx', 'SL_angle', 'AC_dictRF', 'waveformTJ', 'waveformAC', 'trajectory_freq', 'vertices');
+                save(['Z:\' fn],'pulseAmp','time_axis','relPhase','lengths',...
+                    'phases','spacings','reps','trigs','start_time','pi', 'pi_b', 'tacq', 'pi_idx', 'SL_angle',...
+                    'period', 'pulse_width', 'lead_delay', 'Vpp', 'DC_offset', 'ncycles');
                 fprintf('Save complete\n');
                 tek.output_off() 
 %                 tek2.output_off()
