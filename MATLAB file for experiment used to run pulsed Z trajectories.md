@@ -258,9 +258,6 @@ end
     ch3 = 3;
     ch4 = 4;
     
-    idx = cmdBytes(2);
-    pi_idx = idx;
-
     
     amps = [1 1];
     frequencies = [0 0];
@@ -268,17 +265,8 @@ end
     
     spacing = 100e-6;
     
-    pi_b = pi*0.9;    %abc
-    SL_angle = pi_b/pi * 90;
-    ACfreqarr = 10:1:200;
-    rng(42);
-    idx = mod(idx - 1, numel(ACfreqarr)) + 1;
-    ACfreqarrshuffled = ACfreqarr(randperm(length(ACfreqarr)));
-    disp(ACfreqarrshuffled);
-    ACfreq = ACfreqarrshuffled(idx);
-    disp(['The AC freq at the current index is: ', num2str(ACfreq)]);
     
-    lengths = [pi/2 pi/2];
+    lengths = [pi/2 3*pi/4];
     lengths = round_to_DAC_freq(lengths,sampleRateDAC_freq, 64);
     lengths_exact = vpa(lengths, 12);
     phases = [0 90];
@@ -300,7 +288,9 @@ end
     %%set PB parameter
     start_trajectory_time = 1;
     T = lengths(2) + spacings(2);
-        
+    
+    % Start time for the Z pulses based on spin lock pulse lenghts and spacing
+    % between them
     start_time = lengths(1) + spacings(1) + 5000*T + lengths(2);
 
     PB_seg1 = zeros(2, 2);
@@ -315,31 +305,7 @@ end
     
     start_time_exact = vpa(start_time, 12);
     display(start_time_exact);
-    %%set AC field parameter
 
-    %TJidx = idx - 1;
-    %disp((1.08^9)/(1.08^TJidx));
-    %trajectory_freq = (1.08^9) * trajectory_freq / (1.08^idx);  %abc
-    %AC_dict.freq = trajectory_freq;
-    
-    %waveformTJ          = 'SIN';    %SIN, SQU, TRI
-    %AC_dict.Vpp         = 0.0;
-    %AC_dict.DC_offset   = 0;
-    %AC_dict.phase       = 0;
-    
-%     waveformAC          = 'SIN';
-%     AC_dict2.freq       = 20;
-%     AC_dict2.Vpp        = 0; 
-%     AC_dict2.DC_offset  = 0;
-%     AC_dict2.phase      = 0;
-%     
-%     AC_dictRF.freq      = 75352401.49;
-%     AC_dictRF.Vpp       = 0;
-%     AC_dictRF.DC_offset = 0;
-%     AC_dictRF.phase     = 0;
-%     
-    %ch2 = 2;
-    %PB(ch2) = PB_seg3;
     PB(ch3) = PB_seg1;
     PB(ch4) = PB_seg2;
     %no need to initialize both channels
@@ -349,21 +315,30 @@ end
     fprintf("PB download finished \n");
     
     fprintf("set Tektronix 31000 as burst mode \n");
-%     ncycles = round(reps(2)*(spacings(2) + lengths(2))*AC_dict.freq) + 10;
-% 
+     
+     period_array = linspace(407, 450, 33);
+     
+     idx = cmdBytes(2);  % Or however idx is derived
+     idx = mod(idx - 1, length(period_array)) + 1;
+     
      % parameters for z pulses
-     period = 600.0;
-     pulse_width = 100.03;
-     lead_delay = 0.0;
-     Vpp = 0.6;
-     DC_offset = 0.3;
-     ncycles = 10000;
-     
-     
+     duration = 6.0; % in SECONDS: how many seconds I want the pulses to be applied for
+     period = period_array(idx); % in MICROSECONDS (converted to microseconds in tek script)
+     pulse_width = 100.02962963; % in MICROSECONDS 
+     lead_delay = 0.0; % in MICROSECONDS 
+     Vpp = 0.6; % in VOLTS
+     DC_offset = 0.3; % in VOLTS
+     ncycles = floor(duration/(period * 1e-6)); %note period still must be divided by one million here
+       
      
       if period~=0 || Vpp~=0
            tek.set_Z_pulse(period, pulse_width, lead_delay, Vpp, DC_offset, ncycles)
       end
+      
+      
+      
+      
+      
 
 %     if AC_dict.Vpp~=0 || AC_dict.DC_offset~=0
 %          tek.burst_mode_trig_waveform(waveformTJ, AC_dict.freq, AC_dict.Vpp,...
@@ -828,7 +803,7 @@ end
                 % Save data
                 fprintf('Writing data to Z:.....\n');
                 save(['Z:\' fn],'pulseAmp','time_axis','relPhase','lengths',...
-                    'phases','spacings','reps','trigs','start_time','pi', 'pi_b', 'tacq', 'pi_idx', 'SL_angle',...
+                    'phases','spacings','reps','trigs','start_time','pi', 'tacq',...
                     'period', 'pulse_width', 'lead_delay', 'Vpp', 'DC_offset', 'ncycles');
                 fprintf('Save complete\n');
                 tek.output_off() 
